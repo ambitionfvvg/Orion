@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+
+<form id="form-auth" method="post">
+    <div class="form-group">
+        <label for="part_no">产品型号</label>
+        <input type="text" class="form-control" name="part_no" id="part_no" ><br/>
+        <label for="qty">数量</label>
+        <input type="text" class="form-control" name="qty" id="qty" value="6000" >
+    </div>
+    <!--<div class="form-group">-->
+        <!--<label for="id-card">身份证号码</label>-->
+        <!--<input type="text" class="form-control" name="id_card" id="id-card">-->
+    <!--</div>-->
+    <!--<div class="error-msg"><i class="fa fa-exclamation-circle"></i>信息填写不完整，请补全信息</div>-->
+    <input type="submit" class="btn btn-success" value="打印">
+</form>
+<hr/>
+
+    <script src="/static/js/jquery.min.js"></script>
+    <script src="/static/js/jquery.form.min.js"></script>
+	<script src="/static/layui/layui.js"></script>
+	<script src="/static/layui/css/layui.css"></script>
+    <script src="/static/js/ihome/label.js"></script>
+</body>
+</html>
