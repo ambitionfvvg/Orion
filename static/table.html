@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html style="height: 100%">
+   <head>
+       <meta charset="utf-8">
+        <script type="text/javascript" src="echarts.min.js"></script>
+        <script src="http://cdn.bootcss.com/jquery/3.2.1/jquery.js"></script>
+   </head>
+   <body style="height: 100%; margin: 0">
+       <div id="dy_hour" style="height: 500px;width: 1100px"></div>
+      
+       <script type="text/javascript">
+        var dom = document.getElementById("dy_hour");
+        var myChart = echarts.init(dom);
+        var app = {};
+        option = null;
+        var posList = [
+            'left', 'right', 'top', 'bottom',
+            'inside',
+            'insideTop', 'insideLeft', 'insideRight', 'insideBottom',
+            'insideTopLeft', 'insideTopRight', 'insideBottomLeft', 'insideBottomRight'
+        ];
+
+        app.configParameters = {
+            rotate: {
+                min: -90,
+                max: 90
+            },
+            align: {
+                options: {
+                    left: 'left',
+                    center: 'center',
+                    right: 'right'
+                }
+            },
+            verticalAlign: {
+                options: {
+                    top: 'top',
+                    middle: 'middle',
+                    bottom: 'bottom'
+                }
+            },
+            position: {
+                options: echarts.util.reduce(posList, function (map, pos) {
+                    map[pos] = pos;
+                    return map;
+                }, {})
+            },
+            distance: {
+                min: 0,
+                max: 100
+            }
+        };
+
+        app.config = {
+            rotate: 0,
+            align: 'center',
+            verticalAlign: 'middle',
+            position: 'top',
+            distance: 10,
+            onChange: function () {
+                var labelOption = {
+                    normal: {
+                        rotate: app.config.rotate,
+                        align: app.config.align,
+                        verticalAlign: app.config.verticalAlign,
+                        position: app.config.position,
+                        distance: app.config.distance
+                    }
+                };
+                myChart.setOption({
+                    series: [{
+                        label: labelOption
+                    }, {
+                        label: labelOption
+                    }, {
+                        label: labelOption
+                    }, {
+                        label: labelOption
+                    }]
+                });
+            }
+        };
+
+
+        var labelOption = {
+            normal: {
+                show: true,
+                position: app.config.position,
+                distance: app.config.distance,
+                align: app.config.align,
+                verticalAlign: app.config.verticalAlign,
+                rotate: app.config.rotate,
+                formatter: '{c}',
+                fontSize: 16,
+                rich: {
+                    name: {
+                        textBorderColor: '#fff'
+                    }
+                }
+            }
+        };
+
+        hourdata = []
+        hourdata = [320, 332, 301, 334, 390,480]
+
+        var option = {
+             title: {
+                        text: '利盟打印机小时产量图'
+                    },
+            color: ['#4cabce'],
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: {
+                    type: 'shadow'
+                }
+            },
+            legend: {
+                data: ['小时产量']
+            },
+            toolbox: {
+                show: true,
+                orient: 'vertical',
+                left: 'right',
+                top: 'center',
+                feature: {
+                    mark: {show: true},
+                    dataView: {show: true, readOnly: false},
+                    magicType: {show: true, type: ['line', 'bar', 'stack', 'tiled']},
+                    restore: {show: true},
+                    saveAsImage: {show: true}
+                }
+            },
+            calculable: true,
+            xAxis: [
+                {
+                    type: 'category',
+                    axisTick: {show: false},
+                    data: []
+                },
+                axisLabel: {        
+                    show: true,    //这行代码控制着坐标轴x轴的文字是否显示
+                      textStyle: {
+                          color: '#fff',   //x轴上的字体颜色
+                          fontSize:'10'    // x轴字体大小
+                      }
+                  }
+            ],
+            yAxis: [
+                {
+                    type: 'value'
+                }
+            ],
+            series: [
+                {
+                    name: '小时产量',
+                    type: 'bar',
+                    barWidth : 30,//柱图宽度
+                    barGap: 0,
+                    label: labelOption,
+                    // data: [320, 332, 301, 334, 390,450]
+                     data: []
+                },
+            ]
+        };
+
+
+        if (option && typeof option === "object") {
+             setTimeout(function() {
+                 Push();
+                   },
+                200);
+            
+            setInterval(function () {
+                            Push()
+                            }, 50000);
+
+
+            function Push() {
+                $.ajax({
+                 type : "post",
+                 async : true,            //异步请求（同步请求将会锁住浏览器，用户其他操作必须等待请求完成才可以执行）
+                 url : "http://127.0.0.1:5000/table",    //请求发送到TestServlet处
+                 data : {},
+                 dataType : "json",        //返回数据形式为json
+                 success : function(data) {
+                    option.series[0].data = data.data
+                    option.xAxis[0].data = data.datax
+                    myChart.setOption(option);
+                    // alert(data.data)
+                 }
+             });
+            }
+
+           
+        }
+       </script>
+   </body>
+</html>

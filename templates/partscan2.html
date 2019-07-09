@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>PartScan Query</title>
+  <meta name="renderer" content="webkit">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <link rel="shortcut icon" href="/static/favicon.ico"/>
+    <script src="/static/js/jquery.min.js"></script>
+    <script src="/static/js/jquery.form.min.js"></script>
+    <script src="/static/layui/layui.js"></script>
+  <link rel="stylesheet" href="./static/layui/css/layui.css"  media="all">
+  <!-- 注意：如果你直接复制所有代码到本地，上述css路径需要改成你本地的
+    <style type="text/css">
+         {#设置table每一行的height#}
+        .layui-table-cell {
+            height: 65px;
+            line-height: 65px;
+        }
+    </style>
+    -->
+</head>
+<body>
+<div>
+    <img src="/static/logot.png" align="right" width="237" height="37" style="position:relative;top:40px;"/>
+    <p style="color:#2319DC;text-align:center;font-size:80px;font-weight:bold">PartScan Query</p>
+</div>
+
+<div class="demoTable">
+  本体SN：
+  <div class="layui-inline">
+    <input class="layui-input" name="id" id="demoReload" autocomplete="off">
+  </div>
+  <button class="layui-btn" data-type="reload">搜索</button>
+</div>
+
+<div class="demoTable">
+  部件SN：
+  <div class="layui-inline">
+    <input class="layui-input" name="part_sn" id="demoReload2" autocomplete="off">
+  </div>
+  <button class="layui-btn" data-type="reload">搜索</button>
+</div>
+
+<table class="layui-hide" id="LAY_table_user" lay-filter="user"></table>
+
+<!--
+<script src="//res.layui.com/layui/dist/layui.js" charset="utf-8"></script>
+ 注意：如果你直接复制所有代码到本地，上述js路径需要改成你本地的 -->
+<script>
+layui.use('table', function(){
+  var table = layui.table;
+
+  //方法级渲染
+  table.render({
+    elem: '#LAY_table_user'
+    ,url: '/getinput'
+    ,cols: [[
+      {field: 'TLI', title: 'TLI', width: '10%',}
+      ,{field: 'SN', title: 'SN', width: '10%',}
+      ,{field: 'PartModuleNumber', title: 'PartModuleNumber', width: '10%'}
+      ,{field: 'PartName', title: 'PartName', width: '10%'}
+      ,{field: 'PartSN', title: 'PartSN', width: '20%',style:'color: #FF0101;'}
+       ,{field: 'EntryDateTime', title: 'EntryDateTime', width: '20%',style:'color: #FF0101;'}
+    ]]
+    ,id: 'testReload'
+    {#,page: true#}
+    {#,height: 315#}
+  });
+
+  var $ = layui.$, active = {
+    reload: function(){
+      var demoReload = $('#demoReload');
+      var demoReload2 = $('#demoReload2');
+
+      //执行重载
+      table.reload('testReload', {
+        page: {
+          curr: 1 //重新从第 1 页开始
+        }
+        ,where: {
+          key: {
+            SN: demoReload.val(),
+              part_sn: demoReload2.val()
+          }
+        }
+      });
+    }
+  };
+
+  $('.demoTable .layui-btn').on('click', function(){
+    var type = $(this).data('type');
+    active[type] ? active[type].call(this) : '';
+  });
+});
+</script>
+
+</body>
+</html>

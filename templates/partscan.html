@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>PartScan Query</title>
+  <meta name="renderer" content="webkit">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <link rel="shortcut icon" href="/static/favicon.ico"/>
+    <script src="/static/js/jquery.min.js"></script>
+    <script src="/static/js/jquery.form.min.js"></script>
+    <script src="/static/layui/layui.js"></script>
+  <link rel="stylesheet" href="./static/layui/css/layui.css"  media="all">
+  <!-- 注意：如果你直接复制所有代码到本地，上述css路径需要改成你本地的
+    <style type="text/css">
+         {#设置table每一行的height#}
+        .layui-table-cell {
+            height: 65px;
+            line-height: 65px;
+        }
+    </style>
+    -->
+</head>
+<body>
+<div>
+    <img src="/static/logot.png" align="right" width="237" height="37" style="position:relative;top:40px;"/>
+    <p style="color:#2319DC;text-align:center;font-size:80px;font-weight:bold">PartScan Query</p>
+</div>
+
+<div class="demoTable">
+  搜索ID：
+  <div class="layui-inline">
+    <input class="layui-input" name="id" id="demoReload" autocomplete="off">
+  </div>
+  <button class="layui-btn" data-type="reload">搜索</button>
+</div>
+
+{#<table class="layui-hide" lay-size="lg" id="demo"></table>#}
+<table class="layui-table" lay-size="lg" id="demo">
+
+</table>
+
+
+<script src="/static/layui/layui.js" charset="utf-8"></script>
+<script src="/static/js/ihome/kanban.js"></script>
+<!-- 注意：如果你直接复制所有代码到本地，上述js路径需要改成你本地的 -->
+<script>
+layui.use('table', function(){
+  var table = layui.table
+  //展示已知数据
+  table.render({
+  loading : false,
+    elem: '#demo'
+    ,url:'/getinput'
+    ,cols: [[ //标题栏
+      {field: 'TLI', title: 'TLI', width: '10%',}
+      ,{field: 'SN', title: 'SN', width: '10%',}
+      ,{field: 'PartModuleNumber', title: 'PartModuleNumber', width: '10%'}
+      ,{field: 'PartName', title: 'PartName', width: '10%'}
+      ,{field: 'PartSN', title: 'PartSN', width: '20%',style:'color: #FF0101;'}
+       ,{field: 'EntryDateTime', title: 'EntryDateTime', width: '20%',style:'color: #FF0101;'}]]
+        ,id: 'testReload'});
+        var $ = layui.$, active = {
+    reload: function(){
+      var demoReload = $('#demoReload');
+
+      //执行重载
+      table.reload('testReload', {
+        page: {
+          curr: 1 //重新从第 1 页开始
+        }
+        ,where: {
+          key: {
+            id: demoReload.val()
+          }
+        }
+      });
+    }
+  };
+
+  $('.demoTable .layui-btn').on('click', function(){
+    var type = $(this).data('type');
+    active[type] ? active[type].call(this) : '';
+  });
+      {#,{field: 'experience', title: '编辑', Width:180}#}
+    ]]
+    {#,data: [{#}
+    {#  "line": "一线"#}
+    {#  ,"operation": "FA03"#}
+    {#  ,"material_code": "49N0024"#}
+    {#}, {#}
+    {#  "line": "一线"#}
+    {#  ,"operation": "FA04"#}
+    {#  ,"material_code": "49N0025"#}
+    {#}]#}
+    //,skin: 'line' //表格风格
+    ,even: true
+    //,page: true //是否显示分页
+    //,limits: [5, 7, 10]
+    //,limit: 5 //每页默认显示的数量
+  , done: function (res, curr, count) {// 表格渲染完成之后的回调
+            //alert("1")
+            {#$(".layui-table th").css("height", "70");#}
+            {#$(".layui-table th").css("font-weight", "bold");// 设定表格标题字体加粗#}
+            {#$(".layui-table th").css("font-size", "50px");#}
+            {#$(".layui-table tr").css("height", "70");#}
+            {# $(".layui-table td").css("height", "70");#}
+            {#$(".layui-table td").css("font-weight", "bold");#}
+            {#$(".layui-table td").css("font-size", "70px");#}
+
+
+            {#$(".layui-table td").css("font-size", "80px");#}
+            //alert(LayUIDataTable)
+            LayUIDataTable.SetJqueryObj($);// 第一步：设置jQuery对象
+            //alert("2")
+            var currentRowDataList = LayUIDataTable.ParseDataTable(function (index, currentData, rowData) {
+            })
+            //LayUIDataTable.HideField('experience');// 隐藏列-单列模式
+
+           // 对相关数据进行判断处理--此处对【物料状态】缺料的进行高亮显示
+             $.each(currentRowDataList, function (index, obj) {
+                 if (obj['state'] && obj['state'].value == 1) {
+                     {#obj['state'].row.css("background-color", "#FAB000");#}
+                 }
+            })
+        }// end done
+  });
+});
+</script>
+
+
+</body>
+</html>
