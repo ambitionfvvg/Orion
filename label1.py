@@ -6,22 +6,53 @@ import json
 import time
 import sqlite3
 from flask import g
-from config import LEXMARK_PN, ZEBRA_IP
+from config import LEXMARK_PN, ZEBRA_IP , PN_DATE_IP, SQLLITE_PATH
 import socket
-
+import pymssql
+import datetime
+import random
 
 # Flask类接收一个参数__name__
 app = Flask(__name__)
+app.debug = False
 manager = Manager(app)
 
 # sqlite3的配置部分
-DATABASE = 'C:\Users\zhaohui.li\Desktop\zpl\DB\print.db'
+DATABASE = SQLLITE_PATH
+
+# SQL EXPRESS 配置部分
+# host = '10.10.161.249\SQLEXPRESS'
+# database = 'OrionLocal'
+# user = 'sa'
+# password = 'Lexmark2018'
 
 
-# 获取数据库连接
+S = 0
+
+
+# 获取sqllite3数据库连接
 def connect_db():
     return sqlite3.connect(DATABASE)
 
+
+# 获取SQL EXPRESS数据库连接
+mstest = []
+def connect_msdb():
+    # return conn
+    if mstest:
+        # print('old conn')
+        return mstest[random.randint(0,2)]
+    else:
+        try:
+            print("start 3 new connect_msdb")
+            for i in range(0,3):
+                ms = pymssql.connect(host='10.10.161.249\SQLEXPRESS', database='OrionLocal', user='sa',
+                                     password='Lexmark2018')
+                mstest.append(ms)
+            print("new 3 connect_msdb ok")
+            return mstest[random.randint(0,2)]
+        except Exception as e:
+            print(e)
 
 @app.before_request
 def before_request():
@@ -34,9 +65,11 @@ def teardown_request(exception):
     # print("teardown")
     if hasattr(g, 'db'):
         g.db.close()
+    # if hasattr(g, 'msdb'):
+    #     g.msdb.close()
 
 
-# 简化数据库查询函数
+# 简化sqllite3数据库查询函数
 def query_db(query, args=(), one=False):
     cur = g.db.execute(query, args)
     rv = [dict((cur.description[idx][0], value)
@@ -44,32 +77,20 @@ def query_db(query, args=(), one=False):
     return (rv[0] if rv else None) if one else rv
 
 
-# 装饰器的作用是将路由映射到视图函数index
+# 简化SQLEXPRESS数据库查询函数
+def query_msdb(query, args=(), one=False):
+    mscur = g.msdb.execute(query, args)
+    rv = [dict((mscur.description[idx][0], value)
+               for idx, value in enumerate(row)) for row in mscur.fetchall()]
+    return (rv[0] if rv else None) if one else rv
+
+
 @app.route('/')
-def index():
-    # user = query_db('select * from print where po = ?',
-    #                 ["123456"], one=True)
-    max_id = query_db('select max(id) from print where po = ?',
-                    ["223456789"], one=True)
-    if max_id["max(id)"] is None:
-        print('No such user')
-        cur = connect_db()
-        cur.execute('insert into print (po,shijian,sn,qty) values (?,?,?,?)',("223456789","190218","001","1234"))
-        print("*1")
-        cur.commit()
-        print("*"*10)
-        # print(cur)
-    else:
-        print(max_id)
-    return render_template("label.html")
-
-
-@app.route('/test')
 def index1():
     return render_template("test.html")
 
 
-# 获取数据库操作的连接
+# 获取sqllite3数据库操作的连接
 cur = connect_db()
 
 
@@ -231,6 +252,8 @@ def reprint():
     values = query_db('select part_no,part_name,qty,print_time  from print where po = ? and sn = ?',
                       [poitem, sn], one=True)
 
+    if values is None:
+        return jsonify(errno="1", errmsg="ok", data={"real_name": ""})
     print(1)
     print(values)
     part_no = values["part_no"]
@@ -251,9 +274,390 @@ def reprint():
     print_time = ptime.encode()
     zpl_print(part_no_code, print_part_name, qty1, print_po, print_sn, print_time)
     print(values)
-    return "ok"
+    return jsonify(errno="0", errmsg="ok", data={"real_name": ""})
+
+
+@app.route("/pnlabel", methods=["POST", "GET"])
+def pnlabel():
+    """
+    小标签打印
+    :return:
+    """
+    # url:127.0.0.1/pnlabel?pn=50G4135&print_date=190329&qty=1
+    # 获取参数
+    pn = request.get_json().get("pn")   # 打印的型号名称
+    print_date = request.get_json().get("print_date")      # 指定的打印日期
+    print_date = print_date[2:].replace('-', '')
+    # print(print_date)
+    qty = request.get_json().get("qty_row")         # 指定打印的行数
+    top = request.get_json().get("top")             # 打印标签的上下偏移量
+    try:
+        if len(top) == 0:
+            top = "0"
+        top = int(top)
+    except Exception as e:
+        print(e)
+    # rebarcode = request.args.get("posn")
+    # pn = request.args.get("pn")   # 打印的型号名称
+    # print_date = request.args.get("print_date")       # 指定的打印日期
+    # qty = request.args.get("qty")         # 指定打印的行数
+
+    # print(pn+print_date)
+
+    # 对获取的参数进行编码
+    pn_print_date = pn + ' '+print_date
+    pn_print_date = pn_print_date.encode("utf-8").encode()
+    pn = pn.encode("utf-8").encode()
+    print_date = print_date.encode("utf-8").encode()
+    qty = qty.encode("utf-8").encode()
+    top = str(top+15).encode()
+
+    # print("ok1")
+    # 拼接斑马指令
+    # z = b"^XA~TA000~JSN^LT0^MNW^MTT^PON^PMN^LH0,0^JMA^PR6,6~SD15^JUS^LRN^CI0^XZ^XA^MMT^LL0059^PW1228^LS0^FT1132,33^A0N,33,33^FH\^FD190329^FS^FT1012,33^A0N,33,33^FH\^FD50G4135^FS^FT731,33^A0N,33,33^FH\^FD50G4135 190329^FS^FT399,33^A0N,33,33^FH\^FD50G4135 190329^FS^FT94,33^A0N,33,33^FH\^FD50G4135 190329^FS^PQ1,0,1,Y^XZ"
+    z1 = b"^XA~TA000~JSN^LT0^MNW^MTT^PON^PMN^LH0,0^JMA^PR6,6~SD15^JUS^LRN^CI0^XZ^XA^MMT^LL0059^PW1228^LS0"      # 打印是纸张的初始化参数
+    # z2 = b"^FT1129,"+top+b"^A0N,33,33^FH\^FD"+print_date+b"^FS^FT1004,"+top+b"^A0N,33,33^FH\^FD"+pn+b"^FS"      # 打印的型号和日期
+    z2 = b"^FS^FT980," + top + b"^A0N,33,33^FH\^FD" + pn_print_date + b"^FS"
+    z3 = b"^FT678,"+top+b"^A0N,33,33^FH\^FD"+pn_print_date+b"^FS"
+    z4 = b"^FT368,"+top+b"^A0N,33,33^FH\^FD"+pn_print_date+b"^FS"
+    z5 = b"^FT47,"+top+b"^A0N,33,33^FH\^FD"+pn_print_date+b"^FS"
+    z6 = b"^PQ"+qty+b",0,1,Y^XZ"
+    z = z1+z2+z3+z4+z5+z6
+    # print(z)
+    mysocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    host =PN_DATE_IP
+    port = 9100
+    # print("ok2")
+    try:
+        mysocket.connect((host, port))  # connecting to host
+        mysocket.send(z)  # send zpl code
+        mysocket.close()  # closing connection
+    except Exception as e:
+        print(e)
+
+    return jsonify(errno="0", errmsg="ok", data={"real_name": ""})
+
+
+
+@app.route("/kanban", methods=["POST", "GET"])
+def kanban():
+    """
+    奔图物料看板逻辑
+    :return:
+    """
+    """
+    1、前端扫码推送表信息到物料看板信息更新系统，触发场景为：
+        ①当某一岗位有物料短缺时：操作员扫码指定的URL缺料二维码，传递拉线（line）,岗位（operation），物料编码（material_code）,物料状态（mark）四个参数到后台，
+        缺料URL示例：http://127.0.0.1:80/material?line=1&operation=FA03&material_code=49N0024&state =starving    1
+        ②后台进行参数合法性的校验，
+            1.判断参数是否都传递了，
+            2.判断传递的参数是否正确
+            3.数据库中所有物料的初始状态为：0，当收到第一次请求后，校验mark参数为starving,表示发送的是缺料信息，修改该物料的状态为1，并向扫描条码的客户端发送提示信息：XXX物料的缺料信息已发送
+            4.物料员收到物料看板展示的欠料信息，并完成该岗位的上料后，扫描该岗位的上料二维码，后台继续进行数据校验，校验mark参数为full,查询该物料的状态为：1，后台修改该物料的状态为：0，并向扫描条码的客户端发送提示信息：XXX物料已完成上料。
+            上料URL示例：http://127.0.0.1:5000/kanban?line=1&operation=FA03&material_code=49N0024&state =full    0
+        ③前台每10秒向后台请求所有的物料数据，后端查询数据库中的缺料的物料信息并展示，并只显示缺料的物料信息
+    """
+    # 获取参数
+    line = request.args.get("line")
+    operation = request.args.get("operation")
+    material_code = request.args.get("material_code")
+    state = request.args.get("state")
+    state = int(state)
+
+    try:
+        values = query_db('select state  from kanban WHERE line = ? AND operation = ? AND material_code = ?',
+                          [line, operation, material_code], one=True)
+        statedb = values['state']
+        if statedb == state and state == 1:
+            return "<h1>%s线%s岗位，%s，缺料信息已发送,请勿重复扫描</h1>" %(line.encode("utf-8"), operation.encode("utf-8"), material_code.encode("utf-8"))
+        if statedb == state and state == 0:
+            return "<h1>%s线%s岗位，%s，上料信息已发送,请勿重复扫描</h1>"  %(line.encode("utf-8"), operation.encode("utf-8"), material_code.encode("utf-8"))
+    except Exception as e:
+        print(e)
+        return "error"
+
+    if state == 0:
+        try:
+            cur.execute('UPDATE kanban SET state = 0 WHERE line = ? AND operation = ? AND material_code = ?',
+                        [line, operation, material_code])
+            cur.commit()
+        except Exception as e:
+            print(e)
+        # return render_template("kanban.html")
+        return "<h1>%s线%s岗位，%s，已完成上料</h1>" %(line.encode("utf-8"), operation.encode("utf-8"), material_code.encode("utf-8"))
+    if state == 1:
+        try:
+            s = cur.execute('UPDATE kanban SET state = 1 WHERE line = ? AND operation = ? AND material_code = ?',
+                            [line, operation, material_code])
+            # print(s)
+            cur.commit()
+        except Exception as e:
+            print(e)
+        return "<h1>%s线%s岗位，%s，缺料信息已发送</h1>" %(line.encode("utf-8"), operation.encode("utf-8"), material_code.encode("utf-8"))
+
+
+@app.route("/getkanban", methods=["POST", "GET"])
+def getkanban():
+    """
+    获取看板的数据
+    :return:
+    """
+    try:
+        # 取数据库中
+        values = query_db('select *  from kanban WHERE state = ?', [1])
+        for value in values:
+            value['state'] = "缺料"
+        # print(values)
+    except Exception as e:
+        print(e)
+    return jsonify(errno="0", code=0, data=values)
+
+
+@app.route("/showkanban", methods=["POST", "GET"])
+def showkanban():
+    """
+    显示看板页面
+    :return:
+    """
+    return render_template("kanban.html")
+
+
+@app.route("/apex", methods=["POST", "GET"])
+def apex():
+    """
+    APEX 页面
+    :return:
+    """
+    return render_template("apex.html")
+
+
+@app.route("/apexpn", methods=["POST", "GET"])
+def apexpn():
+    """
+    APEX型号小标签打印
+    :return:
+    """
+    return jsonify(errno="0", errmsg="ok", data={"PNs": ""})
+
+
+@app.route("/importpn", methods=["POST", "GET"])
+def importpn():
+    """
+    返回所有的APEX型号
+    :return:
+    """
+    import xlrd
+    try:
+        workbook = xlrd.open_workbook(r"C:\Users\zhaohui.li\Desktop\zpl\apex.xlsx")  # 文件名以及路径，如果路径或者文件名有中文给前面加一个r拜师原生字符。
+        sheet1 = workbook.sheet_by_index(0)
+        cols = sheet1.col_values(0)
+        print(cols)
+        for pn in cols:
+            print(pn)
+            pn = pn.encode("utf-8")
+           # cur.execute('insert into apexpn (pn) values (?) ', [pn])
+            x = cur.execute('insert into apexpn (pn) values (?) ', [pn])
+            print(x)
+            cur.commit()
+    except Exception as e:
+        print(e)
+
+    return "OK"
+
+@app.route("/exportpn", methods=["POST", "GET"])
+def exportpn():
+    """
+    导出所有的APEX型号
+    :return:
+    """
+    pns = []
+    try:
+        # 取数据库中
+        values = query_db('select pn from apexpn ', one=False)
+
+        for pn in values:
+            pns.append(pn["pn"])
+        return jsonify(errno="0", errmsg="ok", data=pns)
+    except Exception as e:
+        print(e)
+    return jsonify(errno="1", errmsg="ng", data={})
+
+@app.route("/getinput", methods=["POST", "GET"])
+def query_input():
+    """
+    查询当天产线的投入
+    :return:
+    """
+    # 获取参数
+    SN = request.args.get("key[SN]")
+    part_sn = request.args.get("key[part_sn]")
+    if SN is None and part_sn is None:
+        return jsonify(errno="0", code=0, data={})
+    # print(SN,part_sn)
+    sql = ""
+    params = None
+    if len(SN) > 0:
+        sql = "select * from PartScan where SN = (%s)"
+        params = (SN,)
+        print(params)
+
+    if len(part_sn) > 0:
+        # sql = "SELECT * FROM PartScan WHERE PartSN LIKE %s"
+        sql = "SELECT * FROM PartScan WHERE PartSN LIKE '%%%%%s%%%%'" % part_sn
+        # print(sql)
+        # params = (part_sn,)
+        print(params)
+
+    try:
+        msconn = connect_msdb()
+        mscur = msconn.cursor()
+        mscur.execute(sql, params)
+        rv = [dict((mscur.description[idx][0], value)
+                   for idx, value in enumerate(row)) for row in mscur.fetchall()]
+        datalist = (rv[0] if rv else None) if False else rv
+        # datalist = mscur.fetchall()
+        mscur.close()
+        # msconn.close()
+        return jsonify(errno="0", code=0, data=datalist)
+    except Exception as e:
+        mscur.close()
+        # msconn.close()
+        print(e)
+        return "query failed"
+
+@app.route("/showpartscan", methods=["POST", "GET"])
+def showpartscan():
+    """
+    showpsartscan 页面
+    :return:
+    """
+    return render_template("partscan2.html")
+
+@app.route("/dashboard", methods=["POST", "GET"])
+def dashboard():
+    """
+    显示投入和产出
+    dashboard 页面
+    :return:
+    """
+    return render_template("dashboard.html")
+
+@app.route("/getdashboard", methods=["POST", "GET"])
+def getdashboard():
+    """
+    查询投入和产出
+    dashboard 页面
+    :return:
+    """
+    # 定义查询参数
+    dt = datetime.datetime.now()
+    query_date = dt.strftime("%Y-%m-%d")
+    params = (query_date)
+
+    sql = "SELECT COUNT(*) AS input FROM Products WHERE EntryDateTime > (%s) and Family is not null"
+    sql_out = "select COUNT(DISTINCT Product) as output_qty from Outcomes where OperationTypeName = 'Manufacturing Kit Check' and EntryDateTime > (%s)"
+    print(sql_out)
+    try:
+        msconn = connect_msdb()
+        mscur = msconn.cursor()
+        mscur.execute(sql, params)
+        rv = [dict((mscur.description[idx][0], value)
+                   for idx, value in enumerate(row)) for row in mscur.fetchall()]
+        datalist1 = (rv[0] if rv else None) if False else rv
+
+        mscur.execute(sql_out, params)
+        rv1 = [dict((mscur.description[idx][0], value)
+                   for idx, value in enumerate(row)) for row in mscur.fetchall()]
+        datalist2 = (rv1[0] if rv1 else None) if False else rv1
+        print(datalist2)
+
+        datalist1[0].update(datalist2[0])
+        datalist = [datalist1[0]]
+        mscur.close()
+        # msconn.close()
+        return jsonify(errno="0", code=0, data=datalist)
+    except Exception as e:
+        mscur.close()
+        # msconn.close()
+        print(e)
+        return "query failed"
+
+@app.route("/index", methods=["POST", "GET"])
+def showtest():
+    """
+    显示投入和产出
+    dashboard 页面
+    :return:
+    """
+    return render_template("index.html")
+
+@app.route("/dypns", methods=["POST", "GET"])
+def dypns():
+    """
+    查询当天每个机型的投入和产出
+    dashboard 页面
+    :return:
+    """
+    try:
+        sql_out = "SELECT * FROM PN_DY_OUT"
+        sql_in = "SELECT * FROM PN_DY_IN"
+
+        msconn = connect_msdb()
+        mscur = msconn.cursor()
+        mscur.execute(sql_out)
+        rv = [dict((mscur.description[idx][0], value)
+                   for idx, value in enumerate(row)) for row in mscur.fetchall()]
+        dy_out = (rv[0] if rv else None) if False else rv
+        print(dy_out)
+
+        mscur.execute(sql_in)
+        rv = [dict((mscur.description[idx][0], value)
+                   for idx, value in enumerate(row)) for row in mscur.fetchall()]
+        dy_in = (rv[0] if rv else None) if False else rv
+        print(dy_in)
+        mscur.close()
+        return jsonify(errno="0", code=0, data_out=dy_out, data_in=dy_in)
+    except Exception as e:
+        mscur.close()
+        # msconn.close()
+        print(e)
+        return "query failed"
+
+
+@app.route("/table", methods=["POST", "GET"])
+def table():
+
+    try:
+        sql = "select * from day_every_hour_out order by Hour"
+        msconn = connect_msdb()
+        mscur = msconn.cursor()
+        mscur.execute(sql)
+        rv = [dict((mscur.description[idx][0], value)
+                   for idx, value in enumerate(row)) for row in mscur.fetchall()]
+        dy_hour_out = (rv[0] if rv else None) if False else rv
+        # print(dy_hour_out)
+        # data: [98, 77, 101, 99, 40]
+        data = []
+        datax = []
+        for item in dy_hour_out:
+            data.append(item["out_qty"])
+            # print(type(item["Hour"]))
+            hour = item["Hour"]
+            hour_str = "%s-%s" %(str(hour),str(hour+1))
+            datax.append(hour_str)
+        mscur.close()
+        return jsonify(data=data,datax=datax)
+    except Exception as e:
+        mscur.close()
+        # msconn.close()
+        print(e)
+        return "query failed"
+
+
 
 
 # Flask应用程序实例的run方法启动WEB服务器
 if __name__ == '__main__':
+    # connect_msdb()
     manager.run()
+

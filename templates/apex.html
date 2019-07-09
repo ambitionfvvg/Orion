@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>标签打印</title>
+  <meta name="renderer" content="webkit">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <script src="/static/js/jquery.min.js"></script>
+<script src="/static/js/jquery.form.min.js"></script>
+<script src="/static/layui/layui.js"></script>
+<link rel="stylesheet" href="./static/layui/css/layui.css"  type="text/css">
+  <!-- 注意：如果你直接复制所有代码到本地，上述css路径需要改成你本地的 -->
+</head>
+<body>
+          
+<blockquote class="layui-elem-quote layui-text">
+  纳思达信息技术有限公司标签打印系统
+</blockquote>
+              
+
+<br/>
+<fieldset class="layui-elem-field layui-field-title" style="margin-top: 20px;">
+  <legend>APEX PN标签打印</legend>
+</fieldset>
+
+<form id="PN-label" class="layui-form" action="">
+
+    <div class="layui-form-item">
+    <div class="layui-inline">
+      <label class="layui-form-label">Lexmark PN</label>
+	  <div class="layui-input-block">
+      <select  name="lex_pn" id ="lex_pn_sn" lay-search="" lay-filter="aihao">
+            <option value="">直接选择或搜索选择</option>
+
+      </select>
+    </div>
+
+    </div>
+     <div class="layui-inline">
+      <label class="layui-form-label">打印日期</label>
+      <div class="layui-input-inline">
+        <input type="text" class="layui-input" id="print_date" placeholder="yyyy-MM-dd">
+      </div>
+    </div>
+
+    <div class="layui-inline">
+      <label class="layui-form-label">打印行数</label>
+      <div class="layui-input-inline">
+        <input type="text" name="row" id ="qty_row"  autocomplete="off" class="layui-input">
+      </div>
+    </div>
+
+    <div class="layui-inline">
+        <label class="layui-form-label">上下调整</label>
+        <div class="layui-input-inline">
+            <input type="text" name="top" id ="top"  autocomplete="off" placeholder="0" class="layui-input">
+        </div>
+    </div>
+
+
+  <div class="layui-form-item">
+    <div class="layui-input-block">
+      <button class="layui-btn" lay-submit="yes" >打印</button>
+      <!--<button type="reset" class="layui-btn layui-btn-primary">重打</button> -->
+    </div>
+  </div>
+</form>
+
+          
+<script type="text/javascript" src="/static/layui/layui.js" charset="utf-8"></script>
+<!-- 注意：如果你直接复制所有代码到本地，上述js路径需要改成你本地的 -->
+<script>
+layui.use(['form', 'layedit', 'laydate'], function(){
+  var form = layui.form
+  ,layer = layui.layer
+  ,layedit = layui.layedit
+  ,laydate = layui.laydate;
+  
+  //日期
+  laydate.render({
+    elem: '#date'
+  });
+  laydate.render({
+    elem: '#date1'
+  });
+ //常规用法
+  laydate.render({
+    elem: '#print_date'
+  });
+
+  
+  //创建一个编辑器
+  var editIndex = layedit.build('LAY_demo_editor');
+
+
+  //监听提交
+  form.on('submit(demo1)', function(data){
+    layer.alert(JSON.stringify(data.field), {
+      title: '最终的提交信息'
+    })
+    return false;
+  });
+});
+
+
+$().ready(function(){
+    {#alert("kk")#}
+    jsonData = ""
+    // 向后端发送请求
+        $.ajax({
+            url:"/exportpn",
+            type:"post",
+            data: jsonData,
+            contentType: "application/json",
+            dataType: "json",
+            headers: {
+                "X-CSRFTOKEN": getCookie("csrf_token")
+            },
+            success: function (resp) {
+                if (0 == resp.errno) {
+                    var pns = resp.data
+                    //初始化省份
+                    for (var i = 0; i < pns.length; i++) {
+                        {#alert("kk")#}
+                        $("#lex_pn_sn").append("<option value='" + (i + 1) + "'>" + pns[i] + "</option>");
+                    };
+                }else if(1 == resp.errno){
+                    alert("参数错误")
+                }
+            }
+        });
+});
+
+
+</script>
+<script src="/static/js/ihome/test.js"></script>
+
+</body>
+</html>
